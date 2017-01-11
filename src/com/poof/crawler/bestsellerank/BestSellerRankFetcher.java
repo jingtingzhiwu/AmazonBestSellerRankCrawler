@@ -10,11 +10,14 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorCompletionService;
@@ -52,7 +55,6 @@ import com.poof.crawler.utils.ThreadPoolMirror;
 public class BestSellerRankFetcher {
 
 	private static Logger log = Logger.getLogger(BestSellerRankFetcher.class);
-	private static List<Item> items = new ArrayList<Item>();
 	// https://www.amazon.com/gp/cart/ajax-update.html/ref=ox_sc_update_quantity_1%7C5%7C9?hasMoreItems=0&timeStamp=1483943437&token=gLlivHf2vegw6KN/2Zyn4y/Vu43CbjJqruDM4dwAAAAJAAAAAFhzLg1yYXcAAAAA&requestID=EWCFGCFB10F33Q96XWP8&quantity.C1ZX7K3VT5AIR1=9&pageAction=update-quantity&submit.update-quantity.C1ZX7K3VT5AIR1=1&actionItemID=C1ZX7K3VT5AIR1&asin=B00ITFZTHC
 	// https://www.amazon.com/gp/navigation/ajax/dynamic-menu.html?cartItems=cart&rid=A5SA17R53F0SB9JEE2GD&isFullWidthPrime=0&isPrime=0&weblabs=&customerId=0&sessionId=154-3551805-0723447&marketplaceId=ATVPDKIKX0DER&dynamicRequest=1&primeMenuWidth=310&isFreshRegionAndCustomer=&_=1483956146849
 
@@ -95,18 +97,17 @@ public class BestSellerRankFetcher {
 					CategoryThread thread = new CategoryThread(urls.get(i), proxies.get(i));
 					ThreadPool.getInstance().execute(thread);
 				}
-				log.info(log.getName() + " : " + ThreadPoolMirror.dumpThreadPool("爬虫线程池", ThreadPool.getInstance()));
 			}
 		};
 
-		// Calendar calendar = Calendar.getInstance();
-		// int year = calendar.get(Calendar.YEAR);
-		// int month = calendar.get(Calendar.MONTH);
-		// int day = calendar.get(Calendar.DAY_OF_MONTH);
-		// calendar.set(year, month, day, 9, 10, 00);
-		// Date date = calendar.getTime();
-		// Timer timer = new Timer();
-		// timer.schedule(task, date);
+//		Calendar calendar = Calendar.getInstance();
+//		int year = calendar.get(Calendar.YEAR);
+//		int month = calendar.get(Calendar.MONTH);
+//		int day = calendar.get(Calendar.DAY_OF_MONTH);
+//		calendar.set(year, month, day, 9, 10, 00);
+//		Date date = calendar.getTime();
+//		Timer timer = new Timer();
+//		timer.schedule(task, date);
 		task.run();
 	}
 
@@ -128,7 +129,8 @@ public class BestSellerRankFetcher {
 			java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(java.util.logging.Level.OFF);
 			java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(java.util.logging.Level.OFF);
 			java.util.logging.Logger.getLogger("org.apache.http").setLevel(java.util.logging.Level.OFF);
-
+			
+			List<Item> items = new ArrayList<Item>();
 			final ExecutorService pool = Executors.newFixedThreadPool(3);
 			final ExecutorCompletionService<String> completionService = new ExecutorCompletionService<String>(pool);
 			Integer[] counts = new Integer[] { 1, 2, 3, 4, 5 };
@@ -191,8 +193,6 @@ public class BestSellerRankFetcher {
 									Item item = Parse.cleanProductBlock(elements.get(j));
 									item.setRank(((count - 1) * 20) + j);
 									item.setCategoryId(categoryId);
-									System.err.println(url + "?pg=" + count + ": No." + (((count - 1) * 20) + j) + " item");
-									log.info(log.getName() + " : " + url + "?pg=" + count + ": No." + (((count - 1) * 20) + j) + " item");
 
 									DomElement dom = asinDoms.get(j);
 									HtmlAnchor firsthref = dom.querySelector("a");
@@ -236,6 +236,8 @@ public class BestSellerRankFetcher {
 									updateStock(div, time, token, requestID, webClient, item);
 
 									items.add(item);
+									System.err.println(url + "?pg=" + count + ": No." + (((count - 1) * 20) + j) + " item, qty: [" + item.getStock() + "]");
+									log.info(log.getName() + " : " + url + "?pg=" + count + ": No." + (((count - 1) * 20) + j) + " item: [" + item.getAsin() + "], qty: [" + item.getStock() + "]");
 									TimeUnit.SECONDS.sleep(new Random().nextInt(10) + 5); // checkrobot
 								} catch (java.net.SocketException | java.lang.RuntimeException e) {
 									TimeUnit.SECONDS.sleep(120); // 被关闭后休眠，重新启动
@@ -254,15 +256,13 @@ public class BestSellerRankFetcher {
 			for (int i = 1; i <= 5; i++) {
 				try {
 					completionService.take();
+					BatchInsert(items);
 				} catch (Exception e) {
 
 				}
 			}
 			pool.shutdown();
-
-			BatchInsert(items);
 			long endTime = System.currentTimeMillis();
-			System.err.println("category: " + categoryId + " best seller rank done.");
 			log.info(log.getName() + " : " + String.format("categoryId: " + categoryId + " best seller rank done，耗时%s秒", (endTime - startTime) / 1000));
 		}
 
@@ -270,7 +270,7 @@ public class BestSellerRankFetcher {
 
 	// save to db
 	private static void BatchInsert(List<Item> items) {
-		String sql = "insert into bz_bestsellerank (rank, asin, title, pic, href, price, listprice, rating, reviews, stock, category_id)values(?,?,?,?,?,?,?,?,?,?,?);";
+		String sql = "insert into bz_bestsellerank (rank, asin, title, pic, href, price, listprice, rating, reviews, stock, category_id) values(?,?,?,?,?,?,?,?,?,?,?);";
 		Connection conn = null;
 		try {
 			conn = DBUtil.openConnection();
@@ -353,7 +353,6 @@ public class BestSellerRankFetcher {
 			e.printStackTrace();
 			log.error(log.getName() + " : program error: " + e);
 		}
-		log.info(log.getName() + " : item【" + item.getAsin() + "】, qty【" + item.getStock() + "】");
 	}
 
 }
