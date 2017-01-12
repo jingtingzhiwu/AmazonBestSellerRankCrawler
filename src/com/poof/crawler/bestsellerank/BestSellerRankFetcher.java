@@ -1,6 +1,7 @@
 package com.poof.crawler.bestsellerank;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.net.URLEncoder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -45,7 +46,6 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.poof.crawler.db.DBUtil;
 import com.poof.crawler.utils.FileUtils;
 import com.poof.crawler.utils.ThreadPool;
-import com.poof.crawler.utils.ThreadPoolMirror;
 
 /**
  * @author wilkey
@@ -100,15 +100,14 @@ public class BestSellerRankFetcher {
 			}
 		};
 
-//		Calendar calendar = Calendar.getInstance();
-//		int year = calendar.get(Calendar.YEAR);
-//		int month = calendar.get(Calendar.MONTH);
-//		int day = calendar.get(Calendar.DAY_OF_MONTH);
-//		calendar.set(year, month, day, 9, 10, 00);
-//		Date date = calendar.getTime();
-//		Timer timer = new Timer();
-//		timer.schedule(task, date);
-		task.run();
+		Calendar calendar = Calendar.getInstance();
+		int year = calendar.get(Calendar.YEAR);
+		int month = calendar.get(Calendar.MONTH);
+		int day = calendar.get(Calendar.DAY_OF_MONTH);
+		calendar.set(year, month, day, 9, 10, 00);
+		Date date = calendar.getTime();
+		Timer timer = new Timer();
+		timer.schedule(task, date);
 	}
 
 	static class CategoryThread implements Runnable {
@@ -154,7 +153,7 @@ public class BestSellerRankFetcher {
 									webClient.getOptions().setThrowExceptionOnScriptError(false);
 									webClient.getOptions().setTimeout(60 * 1000);
 									bsrpage = webClient.getPage(url + "?ref=nav_logo&pg=" + count);
-								} catch (HttpHostConnectException e1) {
+								} catch (HttpHostConnectException | SocketTimeoutException e1) {
 									webClient = new WebClient();
 									webClient.getOptions().setCssEnabled(false);
 									webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
@@ -256,7 +255,10 @@ public class BestSellerRankFetcher {
 			for (int i = 1; i <= 5; i++) {
 				try {
 					completionService.take();
-					BatchInsert(items);
+					synchronized (this) {
+						BatchInsert(items);
+						items.clear();
+					}
 				} catch (Exception e) {
 
 				}
@@ -346,8 +348,6 @@ public class BestSellerRankFetcher {
 				updatemsg = updatemsg.substring(0, updatemsg.indexOf(","));
 				updatemsg = updatemsg.replaceAll("[^\\d.]", "");
 				item.setStock(StringUtils.isNotBlank(updatemsg) ? Integer.valueOf(updatemsg) : null);
-			} else {
-				item.setStock(999);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
