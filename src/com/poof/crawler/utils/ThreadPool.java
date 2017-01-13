@@ -1,11 +1,12 @@
 package com.poof.crawler.utils;
 
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @author wilkey 
+ * @author wilkey
  * @mail admin@wilkey.vip
  * @Date 2017年1月10日 下午4:25:58
  */
@@ -17,7 +18,7 @@ public class ThreadPool {
 
 	public static ThreadPoolExecutor getInstance(int corePoolSize, int maximumPoolSize, long aliveTime, TimeUnit unit) {
 		if (executor == null) {
-			PriorityBlockingQueue<Runnable> queue = new PriorityBlockingQueue<Runnable>();
+			BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
 			executor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, aliveTime, unit, queue);
 		}
 
@@ -26,7 +27,7 @@ public class ThreadPool {
 
 	public static ThreadPoolExecutor getInstance() {
 		if (executor == null) {
-			PriorityBlockingQueue<Runnable> queue = new PriorityBlockingQueue<Runnable>();
+			BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
 			executor = new ThreadPoolExecutor(5, 5, 10, TimeUnit.SECONDS, queue);
 		}
 
