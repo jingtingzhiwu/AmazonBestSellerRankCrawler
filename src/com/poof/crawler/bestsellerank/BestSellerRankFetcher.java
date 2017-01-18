@@ -73,6 +73,9 @@ public class BestSellerRankFetcher {
 		TimerTask task = new TimerTask() {
 			@Override
 			public void run() {
+				List<Runnable> listqueue = ThreadPool.shutdownNow();
+				log.info(log.getName() + " shutdown pool before begining, queue size: [" + (listqueue == null ? 0 : listqueue.size()) + "]");
+
 				LinkedList<ProxyConfig> proxies = new LinkedList<ProxyConfig>();
 
 				// 静态块初始化非动态调用
@@ -103,10 +106,10 @@ public class BestSellerRankFetcher {
 		int year = calendar.get(Calendar.YEAR);
 		int month = calendar.get(Calendar.MONTH);
 		int day = calendar.get(Calendar.DAY_OF_MONTH);
-		calendar.set(year, month, day, 9, 10, 00);
+		calendar.set(year, month, day, 01, 10, 00);
 		Date date = calendar.getTime();
 		Timer timer = new Timer();
-		timer.schedule(task, date);
+		timer.schedule(task, date, 60 * 1000 * 60 * 24);
 	}
 
 	static class CategoryThread extends Thread {
@@ -177,13 +180,15 @@ public class BestSellerRankFetcher {
 				for (Iterator<DomElement> tmp = iterators.iterator(); tmp.hasNext();)
 					asinDoms.add(tmp.next());
 
+				int _index = 0;
 				for (int j = 0; j < elements.size(); j++) {
 					try {
 						if (!"zg_itemImmersion".equals(elements.get(j).attr("class")))
 							continue;
+						_index++;
 						webClient.getCookieManager().clearCookies();
 						Item item = Parse.cleanProductBlock(elements.get(j));
-						item.setRank(((count - 1) * 20) + j);
+						item.setRank(((count - 1) * 20) + _index);
 						item.setCategoryId(categoryId);
 
 						DomElement dom = asinDoms.get(j);
@@ -222,8 +227,8 @@ public class BestSellerRankFetcher {
 						updateStock(div, time, token, requestID, webClient, item);
 
 						insert(item);
-						System.err.println(url + "?pg=" + count + ": No." + (((count - 1) * 20) + j) + " item: [" + item.getAsin() + "], qty: [" + item.getStock() + "]");
-						log.info(log.getName() + " : " + url + "?pg=" + count + ": No." + (((count - 1) * 20) + j) + " item: [" + item.getAsin() + "], qty: [" + item.getStock() + "]");
+						System.err.println(url + "?pg=" + count + ": No." + (((count - 1) * 20) + _index) + " item: [" + item.getAsin() + "], qty: [" + item.getStock() + "]");
+						log.info(log.getName() + " : " + url + "?pg=" + count + ": No." + (((count - 1) * 20) + _index) + " item: [" + item.getAsin() + "], qty: [" + item.getStock() + "]");
 						dom = null;
 						firsthref = null;
 						firstpage = null;
@@ -236,7 +241,6 @@ public class BestSellerRankFetcher {
 						time = null;
 						token = null;
 						requestID = null;
-						System.gc();
 						TimeUnit.SECONDS.sleep(new Random().nextInt(10) + 5); // checkrobot
 					} catch (java.net.SocketException | java.lang.RuntimeException e) {
 						TimeUnit.SECONDS.sleep(120); // 被关闭后休眠，重新启动

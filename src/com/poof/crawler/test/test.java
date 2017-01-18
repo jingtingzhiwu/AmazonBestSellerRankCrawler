@@ -2,10 +2,39 @@ package com.poof.crawler.test;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.List;
 import java.util.Random;
+
+import com.poof.crawler.utils.ThreadPool;
 
 public class test {
 	public static void main(String[] args) throws UnsupportedEncodingException, InterruptedException {
+		for (int i = 0; i < 10; i++) {
+			ThreadPool.getInstance().execute(new Runnable() {
+				@Override
+				public void run() {
+					System.err.println("aaaa");
+				}
+			});
+		}
+		System.err.println(ThreadPool.shutdownNow());
+		ThreadPool.getInstance().execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(5000);
+					System.err.println("bbbb");
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+		
+
+		System.err.println("done");
+		if(1==1)return;
+		
+		
 		String sb = "\"nav-cart\":{\"cartQty\":\"3\"}},\"requestid\":\"W1EH7KYNX3ZRXSQ8JSBJ\"}";
 
 		sb = sb.substring(sb.indexOf("cartQty"));

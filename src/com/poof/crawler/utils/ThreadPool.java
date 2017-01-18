@@ -1,5 +1,6 @@
 package com.poof.crawler.utils;
 
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -32,5 +33,14 @@ public class ThreadPool {
 		}
 
 		return executor;
+	}
+
+	public static List<Runnable> shutdownNow() {
+		if (executor != null) {
+			List<Runnable> list = executor.shutdownNow();
+			executor = null;
+			return list;
+		}
+		return null;
 	}
 }
